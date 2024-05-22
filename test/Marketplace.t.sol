@@ -129,4 +129,42 @@ contract MarketplaceTest is Test {
         assertEq(itemsForSale.length, 0);
         vm.stopPrank();
     }
+
+    // Test editItem
+    function test_editItem() public {
+        vm.startPrank(user1);
+        marketplace.registerSeller();
+        marketplace.addItem("Item1", "Description1", 1 ether);
+        vm.stopPrank();
+
+        // Verify the initial item details
+        Marketplace.Item[] memory items = marketplace.viewAllItems();
+        assertEq(items.length, 1);
+        assertEq(items[0].name, "Item1");
+        assertEq(items[0].description, "Description1");
+        assertEq(items[0].price, 1 ether);
+        assertEq(items[0].seller, user1);
+        assertEq(items[0].isSold, false);
+
+        // Try to edit item by non-owner (should fail)
+        vm.startPrank(user2);
+        vm.expectRevert("Only item owner can edit this item");
+        marketplace.editItem(1, "NewItem1", "NewDescription1", 2 ether);
+        vm.stopPrank();
+
+        // Edit item by owner
+        vm.startPrank(user1);
+        assertEq(marketplace.editItem(1, "NewItem1", "NewDescription1", 2 ether), true);
+        vm.stopPrank();
+
+        // Verify the updated item details
+        items = marketplace.viewAllItems();
+        assertEq(items.length, 1);
+        assertEq(items[0].name, "NewItem1");
+        assertEq(items[0].description, "NewDescription1");
+        assertEq(items[0].price, 2 ether);
+        assertEq(items[0].seller, user1);
+        assertEq(items[0].isSold, false);
+    }
+
 }

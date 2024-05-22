@@ -38,6 +38,7 @@ contract Marketplace {
     // Events
     event ItemAdded(uint256 indexed itemId, address indexed seller, string name, uint256 price);
     event ItemSold(uint256 indexed itemId, address indexed buyer);
+    event ItemEdited(uint256 id, string name, string description, uint256 price);
 
     // Modifier to check admin role
     modifier onlyAdmin() {
@@ -48,6 +49,13 @@ contract Marketplace {
     // Modifier to check registered user
     modifier onlyRegisteredUser() {
         require(roles[msg.sender] == 2 || roles[msg.sender] == 3 || roles[msg.sender] == 4, "Only registered users can perform this action");
+        _;
+    }
+
+    // Modifier to check owner of item
+    modifier onlyItemOwner(uint256 itemId) {
+        require(itemId > 0 && itemId <= itemCounter, "Invalid item ID");
+        require(items[itemId - 1].seller == msg.sender, "Only item owner can edit this item");
         _;
     }
 
@@ -102,6 +110,16 @@ contract Marketplace {
 
         items.push(newItem);
         emit ItemAdded(itemCounter, msg.sender, name, price);
+        return true;
+    }
+
+    function editItem(uint256 itemId, string memory name, string memory description, uint256 price) public onlyItemOwner(itemId) returns (bool) {
+        Item storage item = items[itemId - 1];
+        item.name = name;
+        item.description = description;
+        item.description = description;
+        item.price = price;
+        emit ItemEdited(itemId, name, description, price);
         return true;
     }
 
