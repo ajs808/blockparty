@@ -96,7 +96,7 @@ contract Marketplace {
             description: description,
             price: price,
             seller: msg.sender,
-            owner: address(0),
+            owner: msg.sender,
             isSold: false
         });
 
@@ -105,9 +105,30 @@ contract Marketplace {
         return true;
     }
 
-    // View all items for sale
-    function viewItems() public view returns (Item[] memory) {
+    // View all items (including ones that have been sold)
+    function viewAllItems() public view returns (Item[] memory) {
         return items;
+    }
+
+    // View items that are still for sale
+    function viewItemsForSale() public view returns (Item[] memory) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < items.length; i++) {
+            if (!items[i].isSold) {
+                count++;
+            }
+        }
+
+        Item[] memory itemsForSale = new Item[](count);
+        uint256 index = 0;
+        for (uint256 i = 0; i < items.length; i++) {
+            if (!items[i].isSold) {
+                itemsForSale[index] = items[i];
+                index++;
+            }
+        }
+
+        return itemsForSale;
     }
 
     // Buy an item

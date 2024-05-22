@@ -60,13 +60,16 @@ contract MarketplaceTest is Test {
         vm.startPrank(user1);
         marketplace.registerSeller();
         assertEq(marketplace.addItem("Item1", "Description1", 1 ether), true);
-        Marketplace.Item[] memory items = marketplace.viewItems();
+        Marketplace.Item[] memory items = marketplace.viewAllItems();
         assertEq(items.length, 1);
         assertEq(items[0].name, "Item1");
         assertEq(items[0].description, "Description1");
         assertEq(items[0].price, 1 ether);
         assertEq(items[0].seller, user1);
+        assertEq(items[0].owner, user1);
         assertEq(items[0].isSold, false);
+        Marketplace.Item[] memory itemsForSale = marketplace.viewItemsForSale();
+        assertEq(itemsForSale.length, 1);
         vm.stopPrank();
     }
 
@@ -88,12 +91,12 @@ contract MarketplaceTest is Test {
     }
 
     //test viewing items
-    function test_viewItems() public {
+    function test_viewAllItems() public {
         vm.startPrank(user1);
         marketplace.registerSeller();
         marketplace.addItem("Item1", "Description1", 1 ether);
         marketplace.addItem("Item2", "Description2", 2 ether);
-        Marketplace.Item[] memory items = marketplace.viewItems();
+        Marketplace.Item[] memory items = marketplace.viewAllItems();
         assertEq(items.length, 2);
         assertEq(items[0].name, "Item1");
         assertEq(items[1].name, "Item2");
@@ -118,6 +121,12 @@ contract MarketplaceTest is Test {
 
         vm.startPrank(user1);
         assertEq(marketplace.viewBalance(), 1 ether);
+        Marketplace.Item[] memory items = marketplace.viewAllItems();
+        assertEq(items.length, 1);
+        assertEq(items[0].isSold, true);
+        assertEq(items[0].owner, user2);
+        Marketplace.Item[] memory itemsForSale = marketplace.viewItemsForSale();
+        assertEq(itemsForSale.length, 0);
         vm.stopPrank();
     }
 }
