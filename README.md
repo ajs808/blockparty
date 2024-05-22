@@ -1,3 +1,6 @@
+# Blockparty
+Blockparty is a decentralized marketplace built on blockchain technology in solidity. It allows users to buy and sell items securely using Ether (ETH).
+
 ## Foundry
 
 **Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
