@@ -40,19 +40,19 @@ contract Marketplace {
     event ItemSold(uint256 indexed itemId, address indexed buyer);
     event ItemEdited(uint256 id, string name, string description, uint256 price);
 
-    // Modifier to check admin role
+    // Modifier: limits access to admins
     modifier onlyAdmin() {
         require(roles[msg.sender] == 1, "Only admin can perform this action");
         _;
     }
 
-    // Modifier to check registered user
+    // Modifier: limits access to registered users
     modifier onlyRegisteredUser() {
         require(roles[msg.sender] == 2 || roles[msg.sender] == 3 || roles[msg.sender] == 4, "Only registered users can perform this action");
         _;
     }
 
-    // Modifier to check owner of item
+    // Modifier: limits access to owner of the item
     modifier onlyItemOwner(uint256 itemId) {
         require(itemId > 0 && itemId <= itemCounter, "Invalid item ID");
         require(items[itemId - 1].seller == msg.sender, "Only item owner can edit this item");
@@ -81,18 +81,23 @@ contract Marketplace {
         return true;
     }
 
+    // Check the role of the caller
+    function viewRole() public view returns (uint8) {
+        return roles[msg.sender];
+    }
+
     // Add balance to the caller's account
     function addBalance() public payable onlyRegisteredUser returns (bool) {
         balances[msg.sender] += msg.value;
         return true;
     }
 
-    // Check the balance of the caller
+    // Return the balance of ETH deposited to the marketplace by the caller
     function viewBalance() public view returns (uint256) {
         return balances[msg.sender];
     }
 
-    // Add an item for sale
+    // Add an item to the marketplace registry for sale
     function addItem(string memory name, string memory description, uint256 price) public returns (bool) {
         require(roles[msg.sender] == 3 || roles[msg.sender] == 4, "Only registered sellers can add items");
         require(price > 0, "Price must be greater than zero");
@@ -113,6 +118,10 @@ contract Marketplace {
         return true;
     }
 
+    // Edit an item in the marketplace registry
+    // Only the owner of the item can edit it
+    // Can be used to update name, description, and price
+    // Can also be used to relist an item that has been sold as for sale
     function editItem(uint256 itemId, string memory name, string memory description, uint256 price) public onlyItemOwner(itemId) returns (bool) {
         Item storage item = items[itemId - 1];
         item.name = name;
@@ -128,7 +137,7 @@ contract Marketplace {
         return items;
     }
 
-    // View items that are still for sale
+    // View items that, filtered by items that are still for sale
     function viewItemsForSale() public view returns (Item[] memory) {
         uint256 count = 0;
         for (uint256 i = 0; i < items.length; i++) {
@@ -149,7 +158,7 @@ contract Marketplace {
         return itemsForSale;
     }
 
-    // Buy an item
+    // Buy an item, transferring ownership and updating balances
     function buyItem(uint256 itemId) public returns (bool) {
         require(roles[msg.sender] == 2 || roles[msg.sender] == 4, "Only registered buyers can buy items");
         require(itemId > 0 && itemId <= itemCounter, "Invalid item ID");
@@ -164,10 +173,5 @@ contract Marketplace {
 
         emit ItemSold(itemId, msg.sender);
         return true;
-    }
-
-    // Check the role of the caller
-    function viewRole() public view returns (uint8) {
-        return roles[msg.sender];
     }
 }
