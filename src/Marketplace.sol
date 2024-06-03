@@ -52,6 +52,12 @@ contract Marketplace {
         _;
     }
 
+    // Modifier: limits access to registered users and admins
+    modifier onlyRegisteredUserAndAdmin() {
+        require(roles[msg.sender] == 1 || roles[msg.sender] == 2 || roles[msg.sender] == 3 || roles[msg.sender] == 4, "Only registered users and admins can perform this action");
+        _;
+    }
+
     // Modifier: limits access to owner of the item
     modifier onlyItemOwner(uint256 itemId) {
         require(itemId > 0 && itemId <= itemCounter, "Invalid item ID");
@@ -159,16 +165,100 @@ contract Marketplace {
     }
 
     // Filter items
-    function filterItemsForSalebyPrice(uint256 minPrice, uint256 maxPrice) public view returns (Item[] memory) {
+    function filterItemsForSale(string memory name, string memory description, address seller, uint256 minPrice, uint256 maxPrice) public view onlyRegisteredUserAndAdmin returns (Item[] memory) {        
+        require(minPrice < maxPrice, "min price must be less than max price");
+        
         Item[] memory itemsForSale;
         itemsForSale = viewItemsForSale();
 
         Item[] memory filteredItemsForSale;
 
+        filteredItemsForSale = filterItemsForSalebyName(itemsForSale, name);
+        filteredItemsForSale = filterItemsForSalebyDescription(filteredItemsForSale, description);
+        filteredItemsForSale = filterItemsForSalebySeller(filteredItemsForSale, seller);
+        filteredItemsForSale = filterItemsForSalebyPrice(filteredItemsForSale, minPrice, maxPrice);
+
+        return filteredItemsForSale;
+    }
+
+    function filterItemsForSalebySeller(Item[] memory itemsForSale, address seller) public view returns (Item[] memory) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < itemsForSale.length; i++) {
+            if (itemsForSale[i].seller == seller) {
+                count++;
+            }
+        }
+        
+        Item[] memory filteredItemsForSale = new Item[](count);
+        uint256 index = 0;
+
+        for (uint256 i = 0; i < itemsForSale.length; i++) {
+            if (itemsForSale[i].seller == seller) {
+                filteredItemsForSale[index] = itemsForSale[i];
+                index++;
+            }
+        }
+
+        return filteredItemsForSale;
+    }
+
+    function filterItemsForSalebyName(Item[] memory itemsForSale, string memory name) public view returns (Item[] memory) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < itemsForSale.length; i++) {
+            if (keccak256(bytes(itemsForSale[i].name)) == keccak256(bytes(name))) {
+                count++;
+            }
+        }
+        
+        Item[] memory filteredItemsForSale = new Item[](count);
+        uint256 index = 0;
+
+        for (uint256 i = 0; i < itemsForSale.length; i++) {
+            if (keccak256(bytes(itemsForSale[i].name)) == keccak256(bytes(name))) {
+                filteredItemsForSale[index] = itemsForSale[i];
+                index++;
+            }
+        }
+
+        return filteredItemsForSale;
+    }
+
+    function filterItemsForSalebyDescription(Item[] memory itemsForSale, string memory description) public view returns (Item[] memory) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < itemsForSale.length; i++) {
+            if (keccak256(bytes(itemsForSale[i].description)) == keccak256(bytes(description))) {
+                count++;
+            }
+        }
+        
+        Item[] memory filteredItemsForSale = new Item[](count);
+        uint256 index = 0;
+
+        for (uint256 i = 0; i < itemsForSale.length; i++) {
+            if (keccak256(bytes(itemsForSale[i].description)) == keccak256(bytes(description))) {
+                filteredItemsForSale[index] = itemsForSale[i];
+                index++;
+            }
+        }
+
+        return filteredItemsForSale;
+    }
+
+    function filterItemsForSalebyPrice(Item[] memory itemsForSale, uint256 minPrice, uint256 maxPrice) public view returns (Item[] memory) {
         uint256 count = 0;
         for (uint256 i = 0; i < itemsForSale.length; i++) {
             if (itemsForSale[i].price >= minPrice && itemsForSale[i].price <= maxPrice) {
-                filteredItemsForSale.push(itemsForSale[i])
+                count++;
+            }
+        }
+
+        Item[] memory filteredItemsForSale = new Item[](count);
+        uint256 index = 0;
+
+        for (uint256 i = 0; i < itemsForSale.length; i++) {
+            if (itemsForSale[i].price >= minPrice && itemsForSale[i].price <= maxPrice) {
+                filteredItemsForSale[index] = itemsForSale[i];
+                index++;
             }
         }
 
