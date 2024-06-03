@@ -158,6 +158,25 @@ contract Marketplace {
         return itemsForSale;
     }
 
+    // Filter items
+    function filterItemsForSalebyPrice(uint256 minPrice, uint256 maxPrice) public view returns (Item[] memory) {
+        Item[] memory itemsForSale;
+        itemsForSale = viewItemsForSale();
+
+        Item[] memory filteredItemsForSale;
+
+        uint256 count = 0;
+        for (uint256 i = 0; i < itemsForSale.length; i++) {
+            if (itemsForSale[i].price >= minPrice && itemsForSale[i].price <= maxPrice) {
+                filteredItemsForSale.push(itemsForSale[i])
+            }
+        }
+
+        return filteredItemsForSale;
+    }
+
+
+
     // Buy an item, transferring ownership and updating balances
     function buyItem(uint256 itemId) public returns (bool) {
         require(roles[msg.sender] == 2 || roles[msg.sender] == 4, "Only registered buyers can buy items");
