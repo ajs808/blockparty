@@ -168,13 +168,16 @@ contract Marketplace {
     function filterItemsForSale(string memory name, string memory description, address seller, uint256 minPrice, uint256 maxPrice) public view onlyRegisteredUserAndAdmin returns (Item[] memory) {        
         require(minPrice < maxPrice, "min price must be less than max price");
         
-        Item[] memory itemsForSale;
-        itemsForSale = viewItemsForSale();
+        Item[] memory filteredItemsForSale = viewItemsForSale();
 
-        Item[] memory filteredItemsForSale;
+        if (bytes(name).length > 0){
+            filteredItemsForSale = filterItemsForSalebyName(filteredItemsForSale, name);
+        }
 
-        filteredItemsForSale = filterItemsForSalebyName(itemsForSale, name);
-        filteredItemsForSale = filterItemsForSalebyDescription(filteredItemsForSale, description);
+        if (bytes(description).length > 0){
+            filteredItemsForSale = filterItemsForSalebyDescription(filteredItemsForSale, description);
+        }
+        
         filteredItemsForSale = filterItemsForSalebySeller(filteredItemsForSale, seller);
         filteredItemsForSale = filterItemsForSalebyPrice(filteredItemsForSale, minPrice, maxPrice);
 
