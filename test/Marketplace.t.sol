@@ -353,7 +353,164 @@ contract MarketplaceTest is Test {
         vm.stopPrank();
     }
 
-    
+    // Test filtering by price
+    function test_filterItemsForSaleByPrice() public {
 
+        vm.startPrank(user1);
+        assertEq(marketplace.registerSeller(), true);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        assertEq(marketplace.registerBuyer(), true);
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+        assertEq(marketplace.registerSeller(), true);
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+
+        marketplace.addItem("Item1", "Description1", 1);
+        marketplace.addItem("Item2", "Description2", 2);
+
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+
+        marketplace.addItem("Item3", "Description3", 3);
+        marketplace.addItem("Item4", "Description4", 4);
+        marketplace.addItem("Item5", "Description5", 5);
+
+        vm.stopPrank();
+
+        // testing for the seller
+        vm.startPrank(user1);
+
+        Marketplace.Item[] memory items = marketplace.viewAllItems();
+
+        Marketplace.Item[] memory filteredItems = marketplace.filterItemsForSalebyPrice(items, 1, 3);
+        assertEq(filteredItems.length, 3);
+        assertEq(filteredItems[0].price, 1);
+        assertEq(filteredItems[1].price, 2);
+        assertEq(filteredItems[2].price, 3);
+
+        filteredItems = marketplace.filterItemsForSalebyPrice(items, 2, 5);
+        assertEq(filteredItems.length, 4);
+        assertEq(filteredItems[0].price, 2);
+        assertEq(filteredItems[1].price, 3);
+        assertEq(filteredItems[2].price, 4);
+        assertEq(filteredItems[3].price, 5);
+
+        filteredItems = marketplace.filterItemsForSalebyPrice(items, 3, 3);
+        assertEq(filteredItems.length, 1);
+        assertEq(filteredItems[0].price, 3);
+
+        filteredItems = marketplace.filterItemsForSalebyPrice(items, 0, 100);
+        assertEq(filteredItems.length, 5);
+        assertEq(filteredItems[0].price, 1);
+        assertEq(filteredItems[1].price, 2);
+        assertEq(filteredItems[2].price, 3);
+        assertEq(filteredItems[3].price, 4);
+        assertEq(filteredItems[4].price, 5);
+
+        filteredItems = marketplace.filterItemsForSalebyPrice(items, 0, 0);
+        assertEq(filteredItems.length, 0);
+
+        vm.stopPrank();
+
+        // testing for the buyer
+        vm.startPrank(user2);
+
+        filteredItems = marketplace.filterItemsForSalebyPrice(items, 1, 3);
+        assertEq(filteredItems.length, 3);
+        assertEq(filteredItems[0].price, 1);
+        assertEq(filteredItems[1].price, 2);
+        assertEq(filteredItems[2].price, 3);
+
+        filteredItems = marketplace.filterItemsForSalebyPrice(items, 2, 5);
+        assertEq(filteredItems.length, 4);
+        assertEq(filteredItems[0].price, 2);
+        assertEq(filteredItems[1].price, 3);
+        assertEq(filteredItems[2].price, 4);
+        assertEq(filteredItems[3].price, 5);
+
+        filteredItems = marketplace.filterItemsForSalebyPrice(items, 3, 3);
+        assertEq(filteredItems.length, 1);
+        assertEq(filteredItems[0].price, 3);
+
+        filteredItems = marketplace.filterItemsForSalebyPrice(items, 0, 100);
+        assertEq(filteredItems.length, 5);
+        assertEq(filteredItems[0].price, 1);
+        assertEq(filteredItems[1].price, 2);
+        assertEq(filteredItems[2].price, 3);
+        assertEq(filteredItems[3].price, 4);
+        assertEq(filteredItems[4].price, 5);
+
+        filteredItems = marketplace.filterItemsForSalebyPrice(items, 0, 0);
+        assertEq(filteredItems.length, 0);
+
+        vm.stopPrank();
+    }
+    // Test general filtering
+    function test_filterItemsForSale() public {
+        vm.startPrank(user1);
+        assertEq(marketplace.registerSeller(), true);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        assertEq(marketplace.registerBuyer(), true);
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+        assertEq(marketplace.registerSeller(), true);
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+
+        marketplace.addItem("Item1", "Description1", 1);
+        marketplace.addItem("Item9", "Description1", 8);
+        marketplace.addItem("Item9", "Description1", 10);
+        marketplace.addItem("Item2", "Description2", 2);
+
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+
+        marketplace.addItem("Item9", "Description4", 10);
+        marketplace.addItem("Item3", "Description3", 3);
+        marketplace.addItem("Item4", "Description4", 4);
+        marketplace.addItem("Item5", "Description5", 5);
+
+        vm.stopPrank();
+
+        // filterItemsForSale(string memory name, string memory description, address seller, uint256 minPrice, uint256 maxPrice)
+        
+        // testing for the seller
+        vm.startPrank(user1);
+
+        Marketplace.Item[] memory filteredItems = marketplace.filterItemsForSale("", "", address(0), 1, 3);
+        assertEq(filteredItems.length, 3);
+        assertEq(filteredItems[0].price, 1);
+        assertEq(filteredItems[1].price, 2);
+        assertEq(filteredItems[2].price, 3);
+
+        filteredItems = marketplace.filterItemsForSale("Item9", "", address(0), 1, 100);
+        assertEq(filteredItems.length, 3);
+        assertEq(filteredItems[0].price, 8);
+        assertEq(filteredItems[0].name, "Item9");
+        assertEq(filteredItems[1].price, 10);
+        assertEq(filteredItems[1].name, "Item9");
+        assertEq(filteredItems[2].price, 10);
+        assertEq(filteredItems[2].name, "Item9");
+
+        filteredItems = marketplace.filterItemsForSale("", "Description4", address(0), 1, 100);
+        assertEq(filteredItems.length, 2);
+        assertEq(filteredItems[0].price, 10);
+        assertEq(filteredItems[0].name, "Item9");
+        assertEq(filteredItems[1].price, 4);
+        assertEq(filteredItems[1].name, "Item4");
+
+        vm.stopPrank();
+    }
 }
 

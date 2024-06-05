@@ -177,7 +177,10 @@ contract Marketplace {
             filteredItemsForSale = filterItemsForSalebyDescription(filteredItemsForSale, description);
         }
         
-        filteredItemsForSale = filterItemsForSalebySeller(filteredItemsForSale, seller);
+        if (seller != address(0)){
+            filteredItemsForSale = filterItemsForSalebySeller(filteredItemsForSale, seller);
+        }
+
         filteredItemsForSale = filterItemsForSalebyPrice(filteredItemsForSale, minPrice, maxPrice);
 
         return filteredItemsForSale;
