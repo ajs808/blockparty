@@ -132,7 +132,6 @@ contract Marketplace {
         Item storage item = items[itemId - 1];
         item.name = name;
         item.description = description;
-        item.description = description;
         item.price = price;
         emit ItemEdited(itemId, name, description, price);
         return true;

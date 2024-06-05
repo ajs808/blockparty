@@ -10,6 +10,7 @@ contract MarketplaceTest is Test {
     address public admin = address(0x01);
     address public user1 = address(0x02);
     address public user2 = address(0x03);
+    address public user3 = address(0x04);
 
     // ==Functional testing==
 
@@ -167,4 +168,192 @@ contract MarketplaceTest is Test {
         assertEq(items[0].isSold, false);
     }
 
+    // Test filtering by name
+    function test_filterItemsForSaleByName() public {
+
+        vm.startPrank(user1);
+        assertEq(marketplace.registerSeller(), true);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        assertEq(marketplace.registerBuyer(), true);
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+        assertEq(marketplace.registerSeller(), true);
+        vm.stopPrank();
+
+        // testing for the seller
+        vm.startPrank(user1);
+
+        marketplace.addItem("Item1", "Description1", 1 ether);
+        marketplace.addItem("Item2", "Description2", 2 ether);
+
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+
+        marketplace.addItem("Item3", "Description3", 3 ether);
+        marketplace.addItem("Item4", "Description4", 4 ether);
+        marketplace.addItem("Item5", "Description5", 5 ether);
+
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+
+        Marketplace.Item[] memory items = marketplace.viewAllItems();
+
+        Marketplace.Item[] memory filteredItems = marketplace.filterItemsForSalebyName(items, "Item1");
+        assertEq(filteredItems.length, 1);
+        assertEq(filteredItems[0].name, "Item1");
+
+        filteredItems = marketplace.filterItemsForSalebyName(items, "Item4");
+        assertEq(filteredItems.length, 1);
+        assertEq(filteredItems[0].name, "Item4");
+
+        vm.stopPrank();
+
+        // testing for the buyer
+        vm.startPrank(user2);
+
+        filteredItems = marketplace.filterItemsForSalebyName(items, "Item1");
+        assertEq(filteredItems.length, 1);
+        assertEq(filteredItems[0].name, "Item1");
+
+        filteredItems = marketplace.filterItemsForSalebyName(items, "Item4");
+        assertEq(filteredItems.length, 1);
+        assertEq(filteredItems[0].name, "Item4");
+
+        vm.stopPrank();
+
+    }
+
+    // Test filtering by description
+    function test_filterItemsForSaleByDescription() public {
+
+        vm.startPrank(user1);
+        assertEq(marketplace.registerSeller(), true);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        assertEq(marketplace.registerBuyer(), true);
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+        assertEq(marketplace.registerSeller(), true);
+        vm.stopPrank();
+
+        // testing for the seller
+        vm.startPrank(user1);
+
+        marketplace.addItem("Item1", "Description1", 1 ether);
+        marketplace.addItem("Item2", "Description2", 2 ether);
+
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+
+        marketplace.addItem("Item3", "Description3", 3 ether);
+        marketplace.addItem("Item4", "Description4", 4 ether);
+        marketplace.addItem("Item5", "Description5", 5 ether);
+
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+
+        Marketplace.Item[] memory items = marketplace.viewAllItems();
+
+        Marketplace.Item[] memory filteredItems = marketplace.filterItemsForSalebyDescription(items, "Description1");
+        assertEq(filteredItems.length, 1);
+        assertEq(filteredItems[0].description, "Description1");
+
+        filteredItems = marketplace.filterItemsForSalebyDescription(items, "Description4");
+        assertEq(filteredItems.length, 1);
+        assertEq(filteredItems[0].description, "Description4");
+
+        vm.stopPrank();
+
+        // testing for the buyer
+        vm.startPrank(user2);
+
+        filteredItems = marketplace.filterItemsForSalebyDescription(items, "Description1");
+        assertEq(filteredItems.length, 1);
+        assertEq(filteredItems[0].description, "Description1");
+
+        filteredItems = marketplace.filterItemsForSalebyDescription(items, "Description4");
+        assertEq(filteredItems.length, 1);
+        assertEq(filteredItems[0].description, "Description4");
+
+        vm.stopPrank();
+
+    }
+
+    // Test filtering by seller
+    function test_filterItemsForSaleBySeller() public {
+
+        vm.startPrank(user1);
+        assertEq(marketplace.registerSeller(), true);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        assertEq(marketplace.registerBuyer(), true);
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+        assertEq(marketplace.registerSeller(), true);
+        vm.stopPrank();
+
+        // testing for the seller
+        vm.startPrank(user1);
+
+        marketplace.addItem("Item1", "Description1", 1 ether);
+        marketplace.addItem("Item2", "Description2", 2 ether);
+
+        vm.stopPrank();
+
+        vm.startPrank(user3);
+
+        marketplace.addItem("Item3", "Description3", 3 ether);
+        marketplace.addItem("Item4", "Description4", 4 ether);
+        marketplace.addItem("Item5", "Description5", 5 ether);
+
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+
+        Marketplace.Item[] memory items = marketplace.viewAllItems();
+
+        Marketplace.Item[] memory filteredItems = marketplace.filterItemsForSalebySeller(items, address(user1));
+        assertEq(filteredItems.length, 2);
+        assertEq(filteredItems[0].seller, address(user1));
+        assertEq(filteredItems[1].seller, address(user1));
+
+        filteredItems = marketplace.filterItemsForSalebySeller(items, address(user3));
+        assertEq(filteredItems.length, 3);
+        assertEq(filteredItems[0].seller, address(user3));
+        assertEq(filteredItems[1].seller, address(user3));
+        assertEq(filteredItems[2].seller, address(user3));
+
+        vm.stopPrank();
+
+        // testing for the buyer
+        vm.startPrank(user2);
+
+        filteredItems = marketplace.filterItemsForSalebySeller(items, address(user1));
+        assertEq(filteredItems.length, 2);
+        assertEq(filteredItems[0].seller, address(user1));
+        assertEq(filteredItems[1].seller, address(user1));
+
+        filteredItems = marketplace.filterItemsForSalebySeller(items, address(user3));
+        assertEq(filteredItems.length, 3);
+        assertEq(filteredItems[0].seller, address(user3));
+        assertEq(filteredItems[1].seller, address(user3));
+        assertEq(filteredItems[2].seller, address(user3));
+
+        vm.stopPrank();
+    }
+
+    
+
 }
+
