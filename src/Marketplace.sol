@@ -98,6 +98,15 @@ contract Marketplace {
         return true;
     }
 
+    function withdraw(uint amount) public {
+        // require(msg.sender == owner, "Only the owner can withdraw funds");
+        require(roles[msg.sender] == 1 || roles[msg.sender] == 2 || roles[msg.sender] == 3 || roles[msg.sender] == 4, "Only registered users can perform this action");
+        require(amount <= balances[msg.sender], "Insufficient contract balance");
+
+        balances[msg.sender]-=amount;
+        payable(msg.sender).transfer(amount);
+    }
+
     // Return the balance of ETH deposited to the marketplace by the caller
     function viewBalance() public view returns (uint256) {
         return balances[msg.sender];
@@ -270,8 +279,6 @@ contract Marketplace {
         return filteredItemsForSale;
     }
 
-
-
     // Buy an item, transferring ownership and updating balances
     function buyItem(uint256 itemId) public returns (bool) {
         require(roles[msg.sender] == 2 || roles[msg.sender] == 4, "Only registered buyers can buy items");
@@ -287,5 +294,9 @@ contract Marketplace {
 
         emit ItemSold(itemId, msg.sender);
         return true;
+    }
+
+    function getBalance() public view returns (uint256) {
+        return msg.sender.balance;
     }
 }

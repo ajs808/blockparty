@@ -4,19 +4,46 @@ pragma solidity ^0.8.13;
 import {Test, console} from "forge-std/Test.sol";
 import {Marketplace} from "../src/Marketplace.sol";
 
+// Used for reentrancy testing
+contract Attack {
+    Marketplace public marketplace;
+    uint256 public constant amount = 1 ether;
+
+    constructor(Marketplace _marketplace) {
+        marketplace = _marketplace;
+    }
+
+    receive() external payable {
+        if (address(marketplace).balance >= amount) {
+            marketplace.withdraw(amount);
+        }
+    }
+
+    function attack() external payable {
+        marketplace.addBalance{value: amount}();
+        marketplace.withdraw(amount);
+    }
+
+    function getBalance() public view returns (uint256) {
+        return msg.sender.balance;
+    }
+}
+
 contract MarketplaceTest is Test {
     Marketplace public marketplace;
+    Attack public attacker;
 
     address public admin = address(0x01);
     address public user1 = address(0x02);
     address public user2 = address(0x03);
     address public user3 = address(0x04);
 
-    // ==Functional testing==
+    // == FUNCTIONAL TESTING ==
 
     function setUp() public {
         vm.startPrank(admin);
         marketplace = new Marketplace();
+        attacker = new Attack(marketplace);
         vm.stopPrank();
     }
 
@@ -53,6 +80,20 @@ contract MarketplaceTest is Test {
         assertEq(marketplace.viewBalance(), 0 ether);
         marketplace.addBalance{value: 0.5 ether}();
         assertEq(marketplace.viewBalance(), 0.5 ether);
+        vm.stopPrank();
+    }
+
+    //test withdraw of ETH into marketplace account
+    function test_withdraw() public {
+        vm.deal(user1, 1 ether);
+        vm.startPrank(user1);
+        marketplace.registerBuyer();
+        assertEq(marketplace.viewBalance(), 0 ether);
+        marketplace.addBalance{value: 0.5 ether}();
+        assertEq(marketplace.viewBalance(), 0.5 ether);
+        marketplace.withdraw(0.5 ether);
+        assertEq(marketplace.viewBalance(), 0 ether);
+        assertEq(user1.balance, 1 ether);
         vm.stopPrank();
     }
 
@@ -512,5 +553,23 @@ contract MarketplaceTest is Test {
 
         vm.stopPrank();
     }
-}
 
+    // SECURITY TESTING
+
+    // Reentrancy testing
+    function test_reentrancy() public {
+        uint256 marketplaceBalance = marketplace.getBalance();
+        uint256 attackBalance = attacker.getBalance();
+
+        vm.deal(address(attacker), 2 ether);
+        vm.startPrank(address(attacker));
+        marketplace.registerSeller();
+        attacker.attack{value: 1 ether}();
+        marketplaceBalance = marketplace.viewBalance();
+        attackBalance = attacker.getBalance();
+        vm.stopPrank();
+
+        assertEq(marketplaceBalance, 0 ether);
+        assertEq(attackBalance, 2 ether);
+    }
+}
