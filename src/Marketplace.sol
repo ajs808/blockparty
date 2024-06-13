@@ -148,26 +148,6 @@ contract Marketplace {
         emit ItemAdded(itemCounter, msg.sender, name, price);
         return true;
     }
-
-    // Relist existing item that has already been sold
-    // function addExistingItem(string memory name, string memory description, uint256 price) public returns (bool) {
-    //     require(roles[msg.sender] == 3 || roles[msg.sender] == 4, "Only registered sellers can add items");
-
-    //     // find the item that the owner of an item wants to 
-    //     Item[] memory filteredItems = filterItems(name, description, address(0), msg.sender, price, price);
-
-    //     require(filteredItems.length == 0, "No items were found");
-
-    //     // take the first item by default (if there are multiple with the same exact specs)
-    //     Item memory item = filteredItems[0];
-
-    //     require(item.isSold == true, "The item has not been sold yet");
-
-    //     item.seller = msg.sender;
-    //     item.isSold = false;
-
-    //     return true;
-    // }
     
     // Overloaded addExistingItem function with itemId as the parameter instead
     function addExistingItem(uint256 itemId) public onlyItemOwner(itemId) returns (bool) {
