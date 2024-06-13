@@ -103,7 +103,6 @@ contract Marketplace {
 
     // Add balance to the caller's account
     function addBalance() public payable onlyRegisteredUser returns (bool) {
-        
         balances[msg.sender] += msg.value;
         return true;
     }
