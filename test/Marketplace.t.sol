@@ -136,14 +136,6 @@ contract MarketplaceTest is Test {
         vm.stopPrank();
     }
 
-    //unregistered user cannot add item
-    function test_addItem_unregistered() public {
-        vm.startPrank(user1);
-        vm.expectRevert("Only registered sellers can add items");
-        marketplace.addItem("Item1", "Description1", 1 ether);
-        vm.stopPrank();
-    }
-
     //test adding item with invalid price
     function test_addItem_invalidPrice() public {
         vm.startPrank(user1);
@@ -574,6 +566,54 @@ contract MarketplaceTest is Test {
 
     // ** SECURITY TESTING **
 
+    //unregistered user cannot add item
+    function test_addItem_unregistered() public {
+        vm.startPrank(user1);
+        vm.expectRevert("Only registered sellers can add items");
+        marketplace.addItem("Item1", "Description1", 1 ether);
+        vm.stopPrank();
+    }
+
+    //unregistered user cannot buy item
+    function test_buyItem_unregistered() public {
+        vm.startPrank(user1);
+        assertEq(marketplace.registerSeller(), true);
+        marketplace.addItem("Item1", "Description1", 10 ether);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        vm.expectRevert("Only registered buyers can buy items");
+        marketplace.buyItem(1);
+        vm.stopPrank();
+    }
+
+    //only item owner can edit item
+    function test_edit_unowned_item() public {
+        vm.startPrank(user1);
+        assertEq(marketplace.registerSeller(), true);
+        marketplace.addItem("Item1", "Description1", 10 ether);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        vm.expectRevert("Only item owner can edit this item");
+        marketplace.editItem(1, "foo", "bar", 1);
+        vm.stopPrank();
+    }
+
+    //user cannot buy item without sufficient balance in marketplace
+    function test_buyItem_insufficientFunds() public {
+        vm.startPrank(user1);
+        assertEq(marketplace.registerSeller(), true);
+        marketplace.addItem("Item1", "Description1", 10 ether);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        assertEq(marketplace.registerBuyer(), true);
+        vm.expectRevert("Insufficient balance");
+        marketplace.buyItem(1);
+        vm.stopPrank();
+    }
+
     // * Reentrancy testing *
     // test_reentrancy1, test_reentrancy2, test_reentrancy3, and test_reentrancy4 test for a reentrancy attack on the withdraw function of our Marketplace smart contract
     // Each successive test tests on increasing amounts of ether that the attacker tries to withdraw
@@ -859,19 +899,6 @@ contract MarketplaceTest is Test {
 
         assertEq(filteredItems.length, 50);
 
-        vm.stopPrank();
-    }
-
-    function test_buyItem_insufficientFunds() public {
-        vm.startPrank(user1);
-        assertEq(marketplace.registerSeller(), true);
-        marketplace.addItem("Item1", "Description1", 10 ether);
-        vm.stopPrank();
-
-        vm.startPrank(user2);
-        assertEq(marketplace.registerBuyer(), true);
-        vm.expectRevert("Insufficient balance");
-        marketplace.buyItem(1);
         vm.stopPrank();
     }
 }
