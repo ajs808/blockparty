@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.19;
 
 contract Marketplace {
     // Struct to represent an item
@@ -15,6 +15,9 @@ contract Marketplace {
 
     address private admin;
     uint256 private itemCounter;
+    bool private isLocked;
+    // uint256 private itemLimit = 5;
+    uint256 private constant pageSize = 50;
 
     // Maps an address to one of the following roles:
     //   - 0: unregistered users
@@ -27,12 +30,18 @@ contract Marketplace {
     // Maps an address to its balance in ETH
     mapping(address => uint256) private balances;
 
+    // Maps an address to its number of listings
+    // mapping(address => uint256) private numListings;
+
+
     // List of all items
     Item[] private items;
 
     constructor() {
         admin = msg.sender;
         roles[admin] = 1; // Admin role
+        itemCounter = 0;
+        isLocked = false;
     }
 
     // Events
@@ -61,7 +70,7 @@ contract Marketplace {
     // Modifier: limits access to owner of the item
     modifier onlyItemOwner(uint256 itemId) {
         require(itemId > 0 && itemId <= itemCounter, "Invalid item ID");
-        require(items[itemId - 1].seller == msg.sender, "Only item owner can edit this item");
+        require(items[itemId - 1].owner == msg.sender, "Only item owner can edit this item");
         _;
     }
 
@@ -99,14 +108,20 @@ contract Marketplace {
         return true;
     }
 
+    // Withdraw specified amount from the caller's marketplace account
     function withdraw(uint amount) public {
-        // require(msg.sender == owner, "Only the owner can withdraw funds");
         require(roles[msg.sender] == 1 || roles[msg.sender] == 2 || roles[msg.sender] == 3 || roles[msg.sender] == 4, "Only registered users can perform this action");
-        require(amount <= address(this).balance, "Insufficient contract balance");
+        require(amount <= balances[msg.sender], "Insufficient contract balance");
 
+        require(isLocked == false, "Withdraw is currently locked");
+        isLocked = true;
 
+        balances[msg.sender]-=amount;
+        // payable(msg.sender).transfer(amount);
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "Transfer failed");
 
-        payable(msg.sender).transfer(amount);
+        isLocked = false;
     }
 
     // Return the balance of ETH deposited to the marketplace by the caller
@@ -135,6 +150,40 @@ contract Marketplace {
         return true;
     }
 
+    // Relist existing item that has already been sold
+    // function addExistingItem(string memory name, string memory description, uint256 price) public returns (bool) {
+    //     require(roles[msg.sender] == 3 || roles[msg.sender] == 4, "Only registered sellers can add items");
+
+    //     // find the item that the owner of an item wants to 
+    //     Item[] memory filteredItems = filterItems(name, description, address(0), msg.sender, price, price);
+
+    //     require(filteredItems.length == 0, "No items were found");
+
+    //     // take the first item by default (if there are multiple with the same exact specs)
+    //     Item memory item = filteredItems[0];
+
+    //     require(item.isSold == true, "The item has not been sold yet");
+
+    //     item.seller = msg.sender;
+    //     item.isSold = false;
+
+    //     return true;
+    // }
+    
+    // Overloaded addExistingItem function with itemId as the parameter instead
+    function addExistingItem(uint256 itemId) public onlyItemOwner(itemId) returns (bool) {
+        require(roles[msg.sender] == 3 || roles[msg.sender] == 4, "Only registered sellers can add items");
+
+        Item storage item = items[itemId - 1];
+
+        require(item.isSold == true, "The item has not been sold yet");
+
+        item.seller = msg.sender;
+        item.isSold = false;
+
+        return true;
+    }
+
     // Edit an item in the marketplace registry
     // Only the owner of the item can edit it
     // Can be used to update name, description, and price
@@ -154,9 +203,19 @@ contract Marketplace {
     }
 
     // View items that, filtered by items that are still for sale
-    function viewItemsForSale() public view returns (Item[] memory) {
+    function viewItemsForSale(uint256 pageNumber) public view returns (Item[] memory) {
+        uint256 startIndex = pageNumber * pageSize;
+        uint256 endIndex = pageNumber * pageSize + (pageSize - 1);
+
+        require(items.length > 0, "No listings exist");
+        require(startIndex <= items.length - 1, "Page number is too large");
+
+        if (endIndex > items.length - 1){
+            endIndex = items.length - 1;
+        }
+
         uint256 count = 0;
-        for (uint256 i = 0; i < items.length; i++) {
+        for (uint256 i = startIndex; i < endIndex + 1; i++) {
             if (!items[i].isSold) {
                 count++;
             }
@@ -164,7 +223,7 @@ contract Marketplace {
 
         Item[] memory itemsForSale = new Item[](count);
         uint256 index = 0;
-        for (uint256 i = 0; i < items.length; i++) {
+        for (uint256 i = startIndex; i < endIndex + 1; i++) {
             if (!items[i].isSold) {
                 itemsForSale[index] = items[i];
                 index++;
@@ -174,111 +233,168 @@ contract Marketplace {
         return itemsForSale;
     }
 
-    // Filter items
-    function filterItemsForSale(string memory name, string memory description, address seller, uint256 minPrice, uint256 maxPrice) public view onlyRegisteredUserAndAdmin returns (Item[] memory) {        
-        require(minPrice < maxPrice, "min price must be less than max price");
+    // Filter all items
+    // function filterItems(string memory name, string memory description, address seller, address owner, uint256 minPrice, uint256 maxPrice, uint256 pageNumber) public view onlyRegisteredUserAndAdmin returns (Item[] memory) {        
+    //     require(minPrice <= maxPrice, "min price must be less than max price");
         
-        Item[] memory filteredItemsForSale = viewItemsForSale();
+    //     Item[] memory filteredItems = viewAllItems();
+
+    //     if (bytes(name).length > 0){
+    //         filteredItems = filterItemsByName(filteredItems, name, pageNumber);
+    //     }
+
+    //     if (bytes(description).length > 0){
+    //         filteredItems = filterItemsByDescription(filteredItems, description, pageNumber);
+    //     }
+        
+    //     if (seller != address(0)){
+    //         filteredItems = filterItemsBySeller(filteredItems, seller, pageNumber);
+    //     }
+
+    //     if (owner != address(0)){
+    //         filteredItems = filterItemsBySeller(filteredItems, owner, pageNumber);
+    //     }
+
+    //     filteredItems = filterItemsByPrice(filteredItems, minPrice, maxPrice, pageNumber);
+
+    //     return filteredItems;
+    // }
+
+    // Filter items for sale
+    function filterItemsForSale(string memory name, string memory description, address seller, /*address owner,*/ uint256 minPrice, uint256 maxPrice, uint256 pageNumber) public view onlyRegisteredUserAndAdmin returns (Item[] memory) {        
+        require(minPrice <= maxPrice, "min price must be less than max price");
+        
+        Item[] memory filteredItemsForSale = viewItemsForSale(pageNumber);
 
         if (bytes(name).length > 0){
-            filteredItemsForSale = filterItemsForSalebyName(filteredItemsForSale, name);
+            filteredItemsForSale = filterItemsByName(filteredItemsForSale, name);
         }
 
         if (bytes(description).length > 0){
-            filteredItemsForSale = filterItemsForSalebyDescription(filteredItemsForSale, description);
+            filteredItemsForSale = filterItemsByDescription(filteredItemsForSale, description);
         }
         
         if (seller != address(0)){
-            filteredItemsForSale = filterItemsForSalebySeller(filteredItemsForSale, seller);
+            filteredItemsForSale = filterItemsBySeller(filteredItemsForSale, seller);
         }
 
-        filteredItemsForSale = filterItemsForSalebyPrice(filteredItemsForSale, minPrice, maxPrice);
+        // if (owner != address(0)){
+        //     filteredItems = filterItemsBySeller(filteredItems, owner);
+        // }
+
+        filteredItemsForSale = filterItemsByPrice(filteredItemsForSale, minPrice, maxPrice);
 
         return filteredItemsForSale;
     }
 
-    function filterItemsForSalebySeller(Item[] memory itemsForSale, address seller) public view returns (Item[] memory) {
+    // Filter items by owner
+    function filterItemsByOwner(Item[] memory itemsToFilter, address owner) public view returns (Item[] memory) {
         uint256 count = 0;
-        for (uint256 i = 0; i < itemsForSale.length; i++) {
-            if (itemsForSale[i].seller == seller) {
+        for (uint256 i = 0; i < itemsToFilter.length; i++) {
+            if (itemsToFilter[i].owner == owner) {
                 count++;
             }
         }
         
-        Item[] memory filteredItemsForSale = new Item[](count);
+        Item[] memory filteredItems = new Item[](count);
         uint256 index = 0;
 
-        for (uint256 i = 0; i < itemsForSale.length; i++) {
-            if (itemsForSale[i].seller == seller) {
-                filteredItemsForSale[index] = itemsForSale[i];
+        for (uint256 i = 0; i < itemsToFilter.length; i++) {
+            if (itemsToFilter[i].owner == owner) {
+                filteredItems[index] = itemsToFilter[i];
                 index++;
             }
         }
 
-        return filteredItemsForSale;
+        return filteredItems;
     }
 
-    function filterItemsForSalebyName(Item[] memory itemsForSale, string memory name) public view returns (Item[] memory) {
+    // Filter items by seller
+    function filterItemsBySeller(Item[] memory itemsToFilter, address seller) public view returns (Item[] memory) {
         uint256 count = 0;
-        for (uint256 i = 0; i < itemsForSale.length; i++) {
-            if (keccak256(bytes(itemsForSale[i].name)) == keccak256(bytes(name))) {
+        for (uint256 i = 0; i < itemsToFilter.length; i++) {
+            if (itemsToFilter[i].seller == seller) {
                 count++;
             }
         }
         
-        Item[] memory filteredItemsForSale = new Item[](count);
+        Item[] memory filteredItems = new Item[](count);
         uint256 index = 0;
 
-        for (uint256 i = 0; i < itemsForSale.length; i++) {
-            if (keccak256(bytes(itemsForSale[i].name)) == keccak256(bytes(name))) {
-                filteredItemsForSale[index] = itemsForSale[i];
+        for (uint256 i = 0; i < itemsToFilter.length; i++) {
+            if (itemsToFilter[i].seller == seller) {
+                filteredItems[index] = itemsToFilter[i];
                 index++;
             }
         }
 
-        return filteredItemsForSale;
+        return filteredItems;
     }
 
-    function filterItemsForSalebyDescription(Item[] memory itemsForSale, string memory description) public view returns (Item[] memory) {
+    // Filter items by name
+    function filterItemsByName(Item[] memory itemsToFilter, string memory name) public view returns (Item[] memory) {
         uint256 count = 0;
-        for (uint256 i = 0; i < itemsForSale.length; i++) {
-            if (keccak256(bytes(itemsForSale[i].description)) == keccak256(bytes(description))) {
+        for (uint256 i = 0; i < itemsToFilter.length; i++) {
+            if (keccak256(bytes(itemsToFilter[i].name)) == keccak256(bytes(name))) {
                 count++;
             }
         }
         
-        Item[] memory filteredItemsForSale = new Item[](count);
+        Item[] memory filteredItems = new Item[](count);
         uint256 index = 0;
 
-        for (uint256 i = 0; i < itemsForSale.length; i++) {
-            if (keccak256(bytes(itemsForSale[i].description)) == keccak256(bytes(description))) {
-                filteredItemsForSale[index] = itemsForSale[i];
+        for (uint256 i = 0; i < itemsToFilter.length; i++) {
+            if (keccak256(bytes(itemsToFilter[i].name)) == keccak256(bytes(name))) {
+                filteredItems[index] = itemsToFilter[i];
                 index++;
             }
         }
 
-        return filteredItemsForSale;
+        return filteredItems;
     }
 
-    function filterItemsForSalebyPrice(Item[] memory itemsForSale, uint256 minPrice, uint256 maxPrice) public view returns (Item[] memory) {
+    // Filter items by description
+    function filterItemsByDescription(Item[] memory itemsToFilter, string memory description) public view returns (Item[] memory) {  
         uint256 count = 0;
-        for (uint256 i = 0; i < itemsForSale.length; i++) {
-            if (itemsForSale[i].price >= minPrice && itemsForSale[i].price <= maxPrice) {
+        for (uint256 i = 0; i < itemsToFilter.length; i++) {
+            if (keccak256(bytes(itemsToFilter[i].description)) == keccak256(bytes(description))) {
+                count++;
+            }
+        }
+        
+        Item[] memory filteredItems = new Item[](count);
+        uint256 index = 0;
+
+        for (uint256 i = 0; i < itemsToFilter.length; i++) {
+            if (keccak256(bytes(itemsToFilter[i].description)) == keccak256(bytes(description))) {
+                filteredItems[index] = itemsToFilter[i];
+                index++;
+            }
+        }
+
+        return filteredItems;
+    }
+
+    // Filter items by price
+    function filterItemsByPrice(Item[] memory itemsToFilter, uint256 minPrice, uint256 maxPrice) public view returns (Item[] memory) {    
+        uint256 count = 0;
+        for (uint256 i = 0; i < itemsToFilter.length; i++) {
+            if (itemsToFilter[i].price >= minPrice && itemsToFilter[i].price <= maxPrice) {
                 count++;
             }
         }
 
-        Item[] memory filteredItemsForSale = new Item[](count);
+        Item[] memory filteredItems = new Item[](count);
         uint256 index = 0;
 
-        for (uint256 i = 0; i < itemsForSale.length; i++) {
-            if (itemsForSale[i].price >= minPrice && itemsForSale[i].price <= maxPrice) {
-                filteredItemsForSale[index] = itemsForSale[i];
+        for (uint256 i = 0; i < itemsToFilter.length; i++) {
+            if (itemsToFilter[i].price >= minPrice && itemsToFilter[i].price <= maxPrice) {
+                filteredItems[index] = itemsToFilter[i];
                 index++;
             }
         }
 
-        return filteredItemsForSale;
+        return filteredItems;
     }
 
     // Buy an item, transferring ownership and updating balances
@@ -298,6 +414,7 @@ contract Marketplace {
         return true;
     }
 
+    // Returns the balance of a user
     function getBalance() public view returns (uint256) {
         return msg.sender.balance;
     }
