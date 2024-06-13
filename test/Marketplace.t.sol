@@ -861,4 +861,17 @@ contract MarketplaceTest is Test {
 
         vm.stopPrank();
     }
+
+    function test_buyItem_insufficientFunds() public {
+        vm.startPrank(user1);
+        assertEq(marketplace.registerSeller(), true);
+        marketplace.addItem("Item1", "Description1", 10 ether);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        assertEq(marketplace.registerBuyer(), true);
+        vm.expectRevert("Insufficient balance");
+        marketplace.buyItem(1);
+        vm.stopPrank();
+    }
 }
