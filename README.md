@@ -204,7 +204,3 @@ Returns the ETH balance of the caller.
 ## Security Notes
 - Functions that modify state or involve transfers are protected by appropriate modifiers.
 - Reentrancy attacks are mitigated by using a reentrancy guard in the `withdraw` function.
-
-## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
